@@ -7,7 +7,7 @@ local hrp
 
 
 local ROUTE_LINKS = {
-    "https://raw.githubusercontent.com/WataXScAja/WataXScIni/refs/heads/main/170.lua",
+    "https://raw.githubusercontent.com/WataXScAja/WataXScIni/refs/heads/main/180.lua",
 }
 
 
