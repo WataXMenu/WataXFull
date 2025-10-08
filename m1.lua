@@ -326,6 +326,6 @@ speedUp.BackgroundColor3 = Color3.fromRGB(100,100,150)
 speedUp.TextColor3 = Color3.fromRGB(255,255,255)
 Instance.new("UICorner", speedUp).CornerRadius = UDim.new(0,6)
 speedUp.MouseButton1Click:Connect(function()
-    playbackRate = math.min(5, playbackRate+0.25)
+    playbackRate = math.min(6, playbackRate+0.25)
     speedLabel.Text = playbackRate.."x"
 end)
