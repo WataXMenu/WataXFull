@@ -8,7 +8,6 @@ local hrp
 
 local ROUTE_LINKS = {
     "https://raw.githubusercontent.com/WataXScAja/WataXScIni/refs/heads/main/60.lua",
-    "https://raw.githubusercontent.com/WataXScAja/WataXScIni/refs/heads/main/61.lua",
 }
 
 
@@ -185,36 +184,22 @@ local function runRoute()
     if not hrp then refreshHRP() end
     isReplayRunning = true
     startMovement()
-
-    -- mulai dari route terdekat terhadap player
-    local startRouteIdx = getNearestRoute()
-    for ridx = startRouteIdx, #routes do
+    local idx = getNearestRoute()
+    local frames = routes[idx][2]
+    if #frames<2 then isReplayRunning=false return end
+    local startIdx = getNearestFrameIndex(frames)
+    for i=startIdx,#frames-1 do
         if not isReplayRunning then break end
-        local frames = routes[ridx][2]
-        if not frames or #frames < 2 then
-            -- skip empty or too-short routes
-            continue
-        end
-
-        -- untuk route pertama, mulai dari frame terdekat; untuk selanjutnya mulai dari 1
-        local startIdx = 1
-        if ridx == startRouteIdx then
-            startIdx = getNearestFrameIndex(frames)
-        end
-
-        for i = startIdx, #frames-1 do
-            if not isReplayRunning then break end
-            lerpCF(frames[i], frames[i+1])
-        end
+        lerpCF(frames[i],frames[i+1])
     end
-
-    isReplayRunning = false
+    isReplayRunning=false
     stopMovement()
 end
 
-
-
-
+local function stopRoute()
+    isReplayRunning=false
+    stopMovement()
+end
 
 
 local screenGui = Instance.new("ScreenGui")
