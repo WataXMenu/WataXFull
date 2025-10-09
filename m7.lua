@@ -49,6 +49,18 @@ local function setupMovement(char)
         local root = char:WaitForChild("HumanoidRootPart", 5)
         if not humanoid or not root then return end
 
+        -- ✅ Tambahan stop kalau mati + update tombol UI
+        humanoid.Died:Connect(function()
+            print("[WataX] Karakter mati, replay otomatis berhenti.")
+            isReplayRunning = false
+            stopMovement()
+            isRunning = false
+            if toggleBtn and toggleBtn.Parent then
+                toggleBtn.Text = "▶ Start"
+                toggleBtn.BackgroundColor3 = Color3.fromRGB(70,200,120)
+            end
+        end)
+
         if animConn then animConn:Disconnect() end
         local lastPos = root.Position
         local jumpCooldown = false
