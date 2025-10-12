@@ -4,12 +4,12 @@ local player = Players.LocalPlayer
 
 local AUTO_START = true
 local AUTO_RESPAWN = true
-local STOP_DELAY = 15
+local STOP_DELAY = 25
 local RESPAWN_DELAY = 10
-local POST_RESPAWN_DELAY = 5
+local POST_RESPAWN_DELAY = 10
 local MOVE_THRESHOLD = 0.05
 local RETRY_INTERVAL = 10
-local COOLDOWN_AFTER_RESPAWN = 10 
+local COOLDOWN_AFTER_RESPAWN = 30
 
 local hrp, toggleBtn
 local lastPos, stillTime, totalDist = nil, 0, 0
