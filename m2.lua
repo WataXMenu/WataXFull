@@ -1,4 +1,5 @@
 
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local PathfindingService = game:GetService("PathfindingService")
@@ -10,16 +11,16 @@ local ROUTE_LINKS = {
     "https://raw.githubusercontent.com/WataXScAja/WataXScIni/refs/heads/main/21.lua",
 }
 
-
 local routes = {}
 local animConn
 local isMoving = false
-local frameTime = 1/30
+local frameTime = 1/32
 local playbackRate = 1
 local isReplayRunning = false
-local triggeredCP = {} -- track CPs already triggered
+local triggeredCP = {} 
 local lastReplayPos = nil
 local lastReplayIndex = 1
+local CP_COOLDOWN = 25 
 
 
 for i, link in ipairs(ROUTE_LINKS) do
@@ -48,18 +49,15 @@ if player.Character then refreshHRP(player.Character) end
 
 local function setupMovement(char)
     task.spawn(function()
-        if not char then
-            char = player.Character or player.CharacterAdded:Wait()
-        end
-        local humanoid = char:WaitForChild("Humanoid", 5)
-        local root = char:WaitForChild("HumanoidRootPart", 5)
+        if not char then char = player.Character or player.CharacterAdded:Wait() end
+        local humanoid = char:WaitForChild("Humanoid",5)
+        local root = char:WaitForChild("HumanoidRootPart",5)
         if not humanoid or not root then return end
 
         humanoid.Died:Connect(function()
-            print("[WataX] Karakter mati, replay otomatis berhenti.")
+            print("[WataX] Karakter mati, replay berhenti.")
             isReplayRunning = false
             stopMovement()
-            isRunning = false
             if toggleBtn and toggleBtn.Parent then
                 toggleBtn.Text = "▶ Start"
                 toggleBtn.BackgroundColor3 = Color3.fromRGB(70,200,120)
@@ -72,37 +70,28 @@ local function setupMovement(char)
 
         animConn = RunService.RenderStepped:Connect(function()
             if not isMoving then return end
-
-            
             if not hrp or not hrp.Parent or not hrp:IsDescendantOf(workspace) then
                 if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                     hrp = player.Character:FindFirstChild("HumanoidRootPart")
                     root = hrp
-                else
-                    return
-                end
+                else return end
             end
-
             if not humanoid or humanoid.Health <= 0 then return end
 
             local direction = root.Position - lastPos
             local dist = direction.Magnitude
-
             if dist > 0.01 then
-                humanoid:Move(direction.Unit * math.clamp(dist * 5, 0, 1), false)
+                humanoid:Move(direction.Unit * math.clamp(dist * 5,0,1),false)
             else
-                humanoid:Move(Vector3.zero, false)
+                humanoid:Move(Vector3.zero,false)
             end
 
             local deltaY = root.Position.Y - lastPos.Y
             if deltaY > 0.9 and not jumpCooldown then
                 humanoid.Jump = true
                 jumpCooldown = true
-                task.delay(0.4, function()
-                    jumpCooldown = false
-                end)
+                task.delay(0.4,function() jumpCooldown=false end)
             end
-
             lastPos = root.Position
         end)
     end)
@@ -142,7 +131,6 @@ for i, data in ipairs(routes) do
     data[2] = adjustRoute(data[2])
 end
 
-
 local function getNearestRoute()
     local nearestIdx, dist = 1, math.huge
     if hrp then
@@ -172,15 +160,15 @@ end
 
 
 local function lerpCF(fromCF,toCF)
-    local duration = frameTime / math.max(0.05, playbackRate)
+    local duration = frameTime / math.max(0.05,playbackRate)
     local startTime = os.clock()
     local t = 0
     while t < duration and isReplayRunning do
         RunService.Heartbeat:Wait()
         t = os.clock() - startTime
-        local alpha = math.min(t / duration, 1)
+        local alpha = math.min(t/duration,1)
         if hrp and hrp.Parent and hrp:IsDescendantOf(workspace) then
-            hrp.CFrame = fromCF:Lerp(toCF, alpha)
+            hrp.CFrame = fromCF:Lerp(toCF,alpha)
         end
     end
 end
@@ -190,10 +178,10 @@ local function walkTo(targetPos)
     local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
     if not humanoid or not hrp then return end
     local path = PathfindingService:CreatePath()
-    path:ComputeAsync(hrp.Position, targetPos)
+    path:ComputeAsync(hrp.Position,targetPos)
     local waypoints = path:GetWaypoints()
     for _, waypoint in ipairs(waypoints) do
-        if not humanoid or humanoid.Health <= 0 then break end
+        if not humanoid or humanoid.Health<=0 then break end
         humanoid:MoveTo(waypoint.Position)
         humanoid.MoveToFinished:Wait()
     end
@@ -206,7 +194,14 @@ local function findNearestCP(radius)
     for _, part in ipairs(workspace:GetDescendants()) do
         if part:IsA("BasePart") and part.Name == "cp" then
             local d = (part.Position - hrp.Position).Magnitude
-            if d < dist then dist = d nearest = part end
+            local size = part.Size.Magnitude / 2
+            if d < dist + size then
+                local lastTriggered = triggeredCP[part]
+                if not lastTriggered or tick() - lastTriggered >= CP_COOLDOWN then
+                    dist = d
+                    nearest = part
+                end
+            end
         end
     end
     return nearest
@@ -220,53 +215,44 @@ local function runRoute(startIdx)
     startMovement()
     local idx = getNearestRoute()
     local frames = routes[idx][2]
-    if #frames < 2 then isReplayRunning = false return end
-
+    if #frames < 2 then isReplayRunning=false return end
     local sIdx = startIdx or getNearestFrameIndex(frames)
-    for i = sIdx, #frames-1 do
+    for i=sIdx,#frames-1 do
         if not isReplayRunning then break end
-        lastReplayIndex = i
-        lastReplayPos = frames[i].Position
-        lerpCF(frames[i], frames[i+1])
+        lastReplayIndex=i
+        lastReplayPos=frames[i].Position
+        lerpCF(frames[i],frames[i+1])
     end
-    isReplayRunning = false
+    isReplayRunning=false
     stopMovement()
 end
 
 local function stopRoute()
-    isReplayRunning = false
+    isReplayRunning=false
     stopMovement()
 end
 
 
 task.spawn(function()
     while true do
-        task.wait(0.6) 
+        task.wait(0.3)
         if isReplayRunning and hrp then
-            local cp = findNearestCP(30) 
-            if cp and not triggeredCP[cp] then
-                triggeredCP[cp] = true
-                print("[WataX] CP Terdeteksi. Menuju CP...")
+            local cp = findNearestCP(15)
+            if cp then
+                triggeredCP[cp] = tick()
+                print("[WataX] CP Terdeteksi, cooldown 25 detik...")
 
-                
-                isReplayRunning = false
+                isReplayRunning=false
                 stopMovement()
 
-                
                 task.spawn(function()
-                    
                     walkTo(cp.Position)
-
-                    
+                    task.wait(0.2)
                     if lastReplayPos then
                         walkTo(lastReplayPos)
                     end
-
                     print("[WataX] Lanjutkan replay...")
-                    
                     task.wait(0.2)
-
-                    
                     task.spawn(function()
                         runRoute(lastReplayIndex)
                     end)
@@ -282,95 +268,95 @@ screenGui.Name="WataXReplayUI"
 screenGui.Parent=game.CoreGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 130)
-frame.Position = UDim2.new(0.05,0,0.75,0)
-frame.BackgroundColor3 = Color3.fromRGB(50,30,70)
-frame.BackgroundTransparency = 0.3
-frame.Active = true
-frame.Draggable = true
-frame.Parent = screenGui
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,16)
+frame.Size=UDim2.new(0,220,0,130)
+frame.Position=UDim2.new(0.05,0,0.75,0)
+frame.BackgroundColor3=Color3.fromRGB(50,30,70)
+frame.BackgroundTransparency=0.3
+frame.Active=true
+frame.Draggable=true
+frame.Parent=screenGui
+Instance.new("UICorner",frame).CornerRadius=UDim.new(0,16)
 
 local glow = Instance.new("UIStroke")
-glow.Parent = frame
-glow.Color = Color3.fromRGB(180,120,255)
-glow.Thickness = 2
-glow.Transparency = 0.4
+glow.Parent=frame
+glow.Color=Color3.fromRGB(180,120,255)
+glow.Thickness=2
+glow.Transparency=0.4
 
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(0.75,0,0,28)
-title.Position = UDim2.new(0.05,0,0,4)
-title.Text = "WataX Script"
-title.Font = Enum.Font.GothamBold
-title.TextScaled = true
-title.BackgroundTransparency = 0.3
-title.BackgroundColor3 = Color3.fromRGB(70,40,120)
-Instance.new("UICorner", title).CornerRadius = UDim.new(0,12)
+local title = Instance.new("TextLabel",frame)
+title.Size=UDim2.new(0.75,0,0,28)
+title.Position=UDim2.new(0.05,0,0,4)
+title.Text="WataX Script"
+title.Font=Enum.Font.GothamBold
+title.TextScaled=true
+title.BackgroundTransparency=0.3
+title.BackgroundColor3=Color3.fromRGB(70,40,120)
+Instance.new("UICorner",title).CornerRadius=UDim.new(0,12)
 
-local hue = 0
+local hue=0
 RunService.RenderStepped:Connect(function()
-    hue = (hue + 0.5) % 360
-    title.TextColor3 = Color3.fromHSV(hue/360,1,1)
+    hue=(hue+0.5)%360
+    title.TextColor3=Color3.fromHSV(hue/360,1,1)
 end)
 
-local closeBtn = Instance.new("TextButton", frame)
-closeBtn.Size = UDim2.new(0,28,0,28)
-closeBtn.Position = UDim2.new(0.78,0,0,4)
-closeBtn.Text = "✖"
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextScaled = true
-closeBtn.BackgroundColor3 = Color3.fromRGB(180,60,60)
-closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0,10)
+local closeBtn=Instance.new("TextButton",frame)
+closeBtn.Size=UDim2.new(0,28,0,28)
+closeBtn.Position=UDim2.new(0.78,0,0,4)
+closeBtn.Text="✖"
+closeBtn.Font=Enum.Font.GothamBold
+closeBtn.TextScaled=true
+closeBtn.BackgroundColor3=Color3.fromRGB(180,60,60)
+closeBtn.TextColor3=Color3.fromRGB(255,255,255)
+Instance.new("UICorner",closeBtn).CornerRadius=UDim.new(0,10)
 
-local closeGlow = Instance.new("UIStroke")
-closeGlow.Parent = closeBtn
-closeGlow.Color = Color3.fromRGB(255,0,100)
-closeGlow.Thickness = 2
-closeGlow.Transparency = 0.6
+local closeGlow=Instance.new("UIStroke")
+closeGlow.Parent=closeBtn
+closeGlow.Color=Color3.fromRGB(255,0,100)
+closeGlow.Thickness=2
+closeGlow.Transparency=0.6
 
 closeBtn.MouseEnter:Connect(function()
-    TweenService:Create(closeGlow, TweenInfo.new(0.2), {Transparency=0.1, Thickness=4}):Play()
+    TweenService:Create(closeGlow,TweenInfo.new(0.2),{Transparency=0.1,Thickness=4}):Play()
 end)
 closeBtn.MouseLeave:Connect(function()
-    TweenService:Create(closeGlow, TweenInfo.new(0.2), {Transparency=0.6, Thickness=2}):Play()
+    TweenService:Create(closeGlow,TweenInfo.new(0.2),{Transparency=0.6,Thickness=2}):Play()
 end)
 closeBtn.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
-local toggleBtn = Instance.new("TextButton", frame)
-toggleBtn.Size = UDim2.new(0.8,0,0.25,0)
-toggleBtn.Position = UDim2.new(0.1,0,0.35,0)
-toggleBtn.Text = "▶ Start"
-toggleBtn.TextScaled = true
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.BackgroundColor3 = Color3.fromRGB(70,200,120)
-toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,14)
+local toggleBtn=Instance.new("TextButton",frame)
+toggleBtn.Size=UDim2.new(0.8,0,0.25,0)
+toggleBtn.Position=UDim2.new(0.1,0,0.35,0)
+toggleBtn.Text="▶ Start"
+toggleBtn.TextScaled=true
+toggleBtn.Font=Enum.Font.GothamBold
+toggleBtn.BackgroundColor3=Color3.fromRGB(70,200,120)
+toggleBtn.TextColor3=Color3.fromRGB(255,255,255)
+Instance.new("UICorner",toggleBtn).CornerRadius=UDim.new(0,14)
 
-local toggleGlow = Instance.new("UIStroke")
-toggleGlow.Parent = toggleBtn
-toggleGlow.Color = Color3.fromRGB(0,255,255)
-toggleGlow.Thickness = 2
-toggleGlow.Transparency = 0.5
+local toggleGlow=Instance.new("UIStroke")
+toggleGlow.Parent=toggleBtn
+toggleGlow.Color=Color3.fromRGB(0,255,255)
+toggleGlow.Thickness=2
+toggleGlow.Transparency=0.5
 
 toggleBtn.MouseEnter:Connect(function()
-    TweenService:Create(toggleGlow, TweenInfo.new(0.2), {Transparency=0.1, Thickness=4}):Play()
+    TweenService:Create(toggleGlow,TweenInfo.new(0.2),{Transparency=0.1,Thickness=4}):Play()
 end)
 toggleBtn.MouseLeave:Connect(function()
-    TweenService:Create(toggleGlow, TweenInfo.new(0.2), {Transparency=0.5, Thickness=2}):Play()
+    TweenService:Create(toggleGlow,TweenInfo.new(0.2),{Transparency=0.5,Thickness=2}):Play()
 end)
 
-local isRunning = false
+local isRunning=false
 toggleBtn.MouseButton1Click:Connect(function()
     if not isRunning then
-        isRunning = true
-        toggleBtn.Text = "■ Stop"
+        isRunning=true
+        toggleBtn.Text="■ Stop"
         task.spawn(runRoute)
     else
-        isRunning = false
-        toggleBtn.Text = "▶ Start"
+        isRunning=false
+        toggleBtn.Text="▶ Start"
         stopRoute()
     end
 end)
