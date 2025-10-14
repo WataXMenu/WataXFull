@@ -14,7 +14,7 @@ local ROUTE_LINKS = {
 local routes = {}
 local animConn
 local isMoving = false
-local frameTime = 1/48
+local frameTime = 1/50
 local playbackRate = 1
 local isReplayRunning = false
 local triggeredCP = {} 
